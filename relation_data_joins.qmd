@@ -1,0 +1,133 @@
+---
+title: "Relation_data_joins"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| echo: false
+#| output: false
+
+library(tidyverse)
+library(nycflights13)
+```
+
+```{r}
+#| paged.print: false
+head(airlines, n = 3)
+```
+
+```{r}
+#| paged.print: false
+flights %>% 
+  select(year:day, carrier, everything()) %>% 
+  group_by(carrier) %>% 
+  summarise(nth(dep_time, n = 3)) %>% # nth + n=3 = den 3 flyvningen den dagen
+  head(n = 10)
+```
+
+```{r}
+head(weather, n = 3)
+```
+
+```{r}
+# slette visse datasett i environment
+# rm(flights)
+
+# slette alle datasett i environment
+# rm(list = ls())
+```
+
+```{r}
+flights <- flights
+```
+
+```{r}
+names(flights)
+```
+
+\]
+
+```{r}
+flights |>
+  select(carrier, everything())
+```
+
+```{r}
+airlines
+```
+
+```{r}
+tmp <- left_join(
+  flights, 
+  airlines, 
+  join_by(
+    "carrier"
+  )
+) |>
+  select(
+    carrier, 
+    airline_name = name,
+    everything()
+    )
+```
+
+Det samme i en pipe:
+
+```{r}
+tmp <- flights |>
+  left_join(
+    airlines, 
+    join_by("carrier")) |>
+  select(
+    carrier, 
+    airline_name = name,
+    everything()
+    )
+```
+
+```{r}
+airlines <- airlines |>
+  rename(id = carrier)
+```
+
+```{r}
+tmp <- flights |>
+  left_join(
+    airlines, 
+    join_by(carrier == id)) |>
+  select(
+    carrier, 
+    airline_name = name,
+    everything()
+    )
+```
+
+```{r}
+nyc_airports <- airports |> 
+  filter(faa %in% c('JFK', 'LGA', 'EWR'))
+print(nyc_airports)
+```
+
+```{r}
+flights |> 
+  select(origin, everything())
+```
+
+```{r}
+flights <- flights |> 
+  left_join(airlines, join_by(carrier)) |> 
+  select(carrier, airline_name = name, everything())
+```
+
+```{r}
+flights <- flights |> 
+  left_join(select(planes, year_man = year, everything()), join_by(tailnum))
+```
+
+```{r}
+#siste
+```
+
+. = alt til linjeshift

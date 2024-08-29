@@ -1,0 +1,550 @@
+---
+title: "tidy_data"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| output: false
+#| message: false
+#| echo: false
+library(tidyverse)
+```
+
+# Tidy Data
+
+1\. Each variable must have its own column.
+
+2\. Each observation must have its own row.
+
+3\. Each value must have its own cell.
+
+If two of the conditions above are satisfied then the third will also be satisfied
+
+## Table3
+
+```{r}
+table3
+```
+
+table3 not tidy. To verdier i hver celle.
+
+```{r}
+tidy3 <- table3 |> 
+  separate(
+    col = rate, 
+    into = c("cases", "pop"), 
+    sep = "/"
+  )
+```
+
+Her har vi en tidy variant av det samme datasettet.
+
+```{r}
+tidy3
+```
+
+## Table2
+
+table2 er ikke ryddig!
+
+```{r}
+table2
+```
+
+Vi ønsker en kolonne som heter population og en som heter cases.
+
+pivot_wider: Går fra noe som er langt over til noe som er vidt.
+
+pivot_longer: Går fra noe som er vidt over til noe som er langt.
+
+```{r}
+tidy2 <- table2 |> 
+  pivot_wider(
+    names_from = type,
+    values_from = count
+  )
+```
+
+Her er vi over på et tidy-format.
+
+```{r}
+tidy2
+```
+
+## Table4a
+
+I table4 har vi to tabeller; a og b. Tabell 4a inneholder cases ordnet i to ulike tidspunkt, dvs. ikke tidy. Informasjonen er også spredt i to ulike tabeller. Krav er at vi skal samle all data i en tabell for at det skal være et tidy datasett.
+
+Vi må gjøre år om til en egen variabel, vi vil ikke har 1999 og 2000.
+
+```{r}
+table4a
+```
+
+Ta navnet på variablene (1999 og 2000) og sett inn i en ny kolonne. Vi må først fortelle hvilke kolonner vi ønsker å formere. Bruker cols. Vi kan også skrive "cols = -1", som sier at vi dropper den først kolonnen. En annen måte å gjøre det på er "cols = 2:3", dvs. ta kolonne to og tre. Et siste alternativ er å bruke navn; "cols = -country". Vil få akkurat samme tabell.
+
+```{r}
+tidy4a <- table4a |> 
+  pivot_longer(
+    cols = c(`1999`, `2000`),
+    names_to = "Year",
+    values_to = "cases"
+  )
+```
+
+```{r}
+tidy4a
+```
+
+## Table4b
+
+```{r}
+table4b
+```
+
+Lager en ny versjon med bokstav i navn.
+
+```{r}
+ag_table4b <- table4b |> 
+  rename(
+    y1999 = `1999`,
+    y2000 = `2000`
+  )
+```
+
+```{r}
+ag_table4b
+```
+
+Gjøre den tidy:
+
+```{r}
+tidy4b <- ag_table4b |> 
+  pivot_longer(
+    cols = c(-country),
+    names_to = "year",
+    values_to = "pop"
+  )
+```
+
+```{r}
+tidy4b
+```
+
+Vi ønsker å fjerne y for hvert år. Bruker names_prefix, som vi finner i help ved å søke på "pivot_longer".
+
+```{r}
+tidy4b <- ag_table4b |> 
+  pivot_longer(
+    cols = c(-country),
+    names_to = "year",
+    values_to = "pop",
+    names_prefix = "y"
+  )
+```
+
+Her ser vi at "y" er borte.
+
+```{r}
+tidy4b
+```
+
+## Tidy4
+
+Vi må samle alle dataene i et datasett for å gjøre det tidy. Vi må smelte sammen de to tabellene tabel4a og table4b. Kan bruke land på land og år på år som nøkkel. I 99% av tilfellene ønsker vi å bruke left_join! Bruker nesten aldri de andre joint funksjonene. Dersom joint_left ikke fungerer kan man sjekke ut de andre, ha det i bakhodet.
+
+Når vi kjører "tidy4 \<- left_join(tidy4a, tidy4b)", så får vi en warning.
+
+```{r}
+tidy4 <- left_join(tidy4a, tidy4b)
+```
+
+Vi ser at vi får år to ganger pga. de har ulike navn. Her ser vi feilen lett og kan ordne det, men det er ikke alltid tilfelle med større datasett! Vær nøye med joins! Det er risky å bare joine to tabeller selv om navnene er like! Oppfordrer å alltid bruke join_by.
+
+```{r}
+tidy4
+```
+
+Her sier vi at Year skal være like year. Vi kan også endre navn fra year til Year ved å bruke rename.
+
+```{r}
+tidy4 <- left_join(
+  tidy4a, tidy4b, join_by(country, Year == year)
+  ) |> 
+  rename(year = Year)
+```
+
+Her er den tidy.
+
+```{r}
+tidy4
+```
+
+seperate() til å separere verdier innenfor 1 kolonne
+
+## Missing values
+
+```{r}
+stocks <- tibble(
+  year   = c(2015, 2015, 2015, 
+             2015, 2016, 2016, 2016),
+  qtr    = c(   1,    2,    3,    
+                4,    2,    3,    4),
+  return = c(1.88, 0.59, 0.35,
+             NA, 0.92, 0.17, 2.66)
+)
+stocks
+```
+
+```{r}
+stocks_wider <- stocks %>% 
+  pivot_wider(
+    names_from = year,
+    values_from = return
+    )
+stocks_wider
+```
+
+```{r}
+stocks_wider %>% 
+  pivot_longer(
+    cols = -qtr,
+    names_to = "year", # in quote since it does not exist yet
+    values_to = "return",
+    values_drop_na = TRUE
+  ) %>% 
+  arrange(year, qtr)
+```
+
+```{r}
+stocks %>% 
+  complete(year, qtr)
+```
+
+## Missing values, fill()
+
+```{r}
+treatment <- tribble(
+  ~ person,           ~ treatment, ~response,
+  "Derrick Whitmore", 1,           7,
+  NA,                 2,           10,
+  NA,                 3,           9,
+  "Katherine Burke",  1,           4
+)
+treatment
+```
+
+```{r}
+treatment %>% 
+  fill(person, .direction = c("down"))
+```
+
+```{r}
+treatment %>% 
+  fill(person, .direction = c("up"))
+```
+
+## Case: who
+
+```{r}
+who <- tidyr::who
+```
+
+```{r}
+who <- who |>
+  pivot_longer(
+    cols = -c(country:year),
+    names_to = "Categories",
+    values_to = "Values"
+  )
+```
+
+```{r}
+who <- who |>
+  mutate(
+    Categories = str_replace(Categories, 
+                             "newrel", "new_rel"),
+    Categories = str_replace(Categories, 
+                             "new_", "") 
+        ) |>
+  separate(
+    col = Categories, 
+    into = c("Type", "genderAge"),
+    sep = "_"
+  ) |>
+  separate(
+    col = genderAge,
+    into = c("Gender", "Age"),
+    sep = 1
+  ) |>
+  mutate(
+    Age = str_replace(Age, "65", "6599")
+  ) |>
+  separate(
+    col = Age, 
+    into = c("AgeStart", "AgeEnd"),
+    sep = -2
+  )
+```
+
+```{r}
+tmp <- who |>
+  unite(
+    col = "Age",
+    AgeStart, AgeEnd,
+    sep = "_"
+  )
+```
+
+## Vectors
+
+\[\[ \]\] \<- kun verdier ikke alt rundt, kan også bruke \$
+
+pul() \<- trekke ut en ren vektor fra en tibble
+
+names() \<- NULL =\> fjerner navn på vektorer
+
+## Iteration
+
+```{r}
+# get tidyverse to shut up
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(lubridate)
+  library(magrittr)
+  library(microbenchmark)
+})
+```
+
+```{r}
+# create a bib file for the R packages
+# used in this document
+# Note! Needs to do a touch ag_functions.bib in terminal before first run
+# else stops when bibliography: "ag_functions.bib" not found in YAML
+knitr::write_bib(
+  c(
+    "tidyverse",
+    "lubridate",
+    "magrittr",
+    "microbenchmark"
+    ),
+  file = "ag_iteration.bib"
+  )
+```
+
+```{r}
+set.seed(333)
+my_df <- tibble(
+  x = rnorm(10, mean = 100, sd = 10),
+  y = runif(10, min = 30, max = 130),
+  z = rlnorm(10, 2, 2)
+)
+my_df1 <- my_df[1:3, 1:3]
+```
+
+```{r}
+# allocate empty vector for output
+out <- vector(mode = "integer", length = 10)
+for (i in 1L:10L) {
+  out[[i]] <- 5L + i
+}
+```
+
+```{r}
+out
+```
+
+```{r}
+my_df1
+```
+
+```{r}
+# allocate empty vector for output
+out <- tibble(x = vector(mode = "double", length = 3),
+              y = vector(mode = "double", length = 3),
+              z = vector(mode = "double", length = 3))
+# i row, j column
+# column
+for (j in 1:ncol(my_df1)) {
+# row
+  for (i in 1:nrow(my_df1)) {
+    out[[i, j]] <-  my_df1[[i, j]] + 5
+  }
+}
+```
+
+```{r}
+out
+```
+
+```{r}
+my_df1 + 5
+```
+
+```{r}
+map_dbl(my_df, mean)
+```
+
+```{r}
+map_dbl(my_df, sum)
+```
+
+```{r}
+# returns the sums as type character
+as.character(map_dbl(my_df, sum))
+```
+
+```{r}
+as.integer(map_dbl(my_df, mean))
+```
+
+```{r}
+round(map_dbl(my_df, mean), digits = 0)
+```
+
+```{r}
+my_df |> 
+  map(median) |> 
+  unlist()
+```
+
+```{r}
+# trim 0.1 removes 10% of data each side
+my_df %>%  map_dbl(mean, trim = 0.1, na.rm = TRUE)
+```
+
+```{r}
+# manual trim lowest and highest
+mean(sort(my_df$x)[2:9])
+```
+
+```{r}
+my_df <- my_df %>% mutate(w = c(rep("A", 5), rep("B", 5)))
+my_df %>% 
+  split(.$w) %>% 
+  map(function(df) lm(x ~ y, data = df))
+```
+
+```{r}
+my_df <- my_df %>% mutate(w = c(rep("A", 5), rep("B", 5)))
+my_models <- my_df %>% 
+  split(.$w) %>% 
+  map(~lm(x ~ y, data = .))
+```
+
+```{r}
+my_models %>% 
+  map(summary) %>% 
+  map_dbl(~.$adj.r.squared)
+```
+
+```{r}
+tmp <- summary(my_models$A)
+```
+
+```{r}
+summary(my_models$A)$adj.r.squared
+```
+
+## Model building
+
+```{r}
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(modelr)
+  options(na.action = na.exclude)
+  library(nycflights13)
+  library(lubridate)
+  library(patchwork)
+  library(hexbin)
+})
+```
+
+```{r}
+# create a bib file for the R packages
+# used in this document
+# Note! Needs to do a touch ag_model_building.bib in terminal before first run
+# else stops when bibliography: "ag_model_building.bib" not found in YAML
+knitr::write_bib(
+  c(
+    "tidyverse",
+    "modelr",
+    "nycflights13",
+    "lubridate",
+    "patchwork"
+    ),
+  file = "ag_model_building.bib"
+  )
+```
+
+```{r}
+ggplot(diamonds, aes(cut, price)) + geom_boxplot() +
+  ggtitle("The connection between quality of cut and price")
+```
+
+```{r}
+ggplot(diamonds, aes(color, price)) + geom_boxplot() +
+  ggtitle("The connection between quality of colour and price")
+```
+
+```{r}
+ggplot(diamonds, aes(clarity, price)) + geom_boxplot() +
+  ggtitle("The connection between clarity and price")
+```
+
+```{r}
+diamonds2 <- diamonds %>% 
+  filter(carat <= 2.5)
+```
+
+```{r}
+g1 <- ggplot(data = diamonds2) + 
+  geom_point(mapping = aes(x = carat, y = price), 
+             size = 0.3,
+             alpha = 0.05
+             )
+g2 <- ggplot(diamonds2, aes(x = carat, y = price)) + 
+  geom_hex(bins = 50)
+# made possible by patchwork
+g1 + g2
+```
+
+```{r}
+g3 <- ggplot(data = diamonds2) + 
+  geom_point(mapping = aes(x = log(carat), y = log(price)), 
+             size = 0.3,
+             alpha = 0.05
+  )
+g4 <- ggplot(diamonds2, aes(x = log(carat), y = log(price))) + 
+  geom_hex(bins = 50)
+g3 + g4
+```
+
+```{r}
+mod_ll <- 'log(price) ~ log(carat)'
+lm_ll <- lm(formula = mod_ll, data = diamonds2)
+coefficients(lm_ll)
+```
+
+```{r}
+diamonds2 <- diamonds2 %>% 
+  add_residuals(lm_ll, var = "resid_lm_ll")
+
+res_m <- mean(diamonds2$resid_lm_ll)
+res_sd <- sd(diamonds2$resid_lm_ll)
+
+diamonds2 %>% 
+  ggplot() +
+  geom_histogram(mapping = aes(x = resid_lm_ll, y = ..density..),
+    alpha = 0.3, binwidth = 0.01) +
+  stat_function(fun = dnorm, args = list(mean = res_m, sd = res_sd))
+```
+
+```{r}
+diamonds2 %>% 
+  select(carat, cut, color, clarity) %>%
+  slice_sample(n = 200) %>% 
+  pairs()
+```
